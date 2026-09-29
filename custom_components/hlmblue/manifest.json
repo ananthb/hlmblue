@@ -1,7 +1,7 @@
 {
   "domain": "hlmblue",
   "name": "He A/C (BLE)",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "config_flow": true,
   "documentation": "https://github.com/ananthb/hlmblue",
   "issue_tracker": "https://github.com/ananthb/hlmblue/issues",

@@ -124,8 +124,8 @@ def frame_fan(fan: str) -> bytes:
 
 
 def frame_swing(on: bool) -> bytes:
-    """Vertical swing."""
-    return _ac(AC_SWING, 1 if on else 0)
+    """Vertical swing. Inverted like power: on is 0 (verified live)."""
+    return _ac(AC_SWING, 0 if on else 1)
 
 
 def frame_swing_h(on: bool) -> bytes:

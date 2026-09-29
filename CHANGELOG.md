@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8
+
+- Fix the swing selector: off and vertical were swapped, as were horizontal
+  and both. The A/C takes vertical swing inverted, like power, and it was
+  being sent the wrong way round.
+
 ## 0.2.7
 
 - The A/C now shows as **idle** rather than **cooling** when it is switched on

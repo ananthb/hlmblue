@@ -404,11 +404,11 @@ setFan fan =
     acFrame acSpeed (fanCode fan)
 
 
-{-| Vertical swing.
+{-| Vertical swing. Inverted like power: on is 0 (verified live).
 -}
 setSwing : Bool -> Frame
 setSwing on =
-    acFrame acSwing (boolBit on)
+    acFrame acSwing (boolBit (not on))
 
 
 {-| Horizontal swing, whose payload is two bytes rather than one.

@@ -32,6 +32,14 @@ def test_frames_match_vectors():
         assert build().hex() == VECTORS[name], f"{name} mismatch"
 
 
+def test_swing_payloads():
+    # Vertical is inverted like power; horizontal is not.
+    assert p.frame_swing(True)[-1:] == b"\x00"
+    assert p.frame_swing(False)[-1:] == b"\x01"
+    assert p.frame_swing_h(True)[-2:] == b"\x00\x01"
+    assert p.frame_swing_h(False)[-2:] == b"\x00\x00"
+
+
 def test_decode_status():
     # A 'Poll' notification: 55aa 03 07 len | dp(02) type(02) len(0004) 00000018 | sum
     frame = b"Poll:42:55aa030700080202000400000018" + b"31" + b"\x00"

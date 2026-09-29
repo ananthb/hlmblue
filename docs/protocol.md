@@ -69,7 +69,7 @@ An AC command is an `AC_CTRL` (1003) frame with `total_level = 2`, the command i
 | SPEED (fan) | 1 | `[0-3]` | REMOTE_DIAG | 11 | `[0]` |
 | TEMP | 2 | `[°C]` | COMPRESSOR | 12 | |
 | MODE | 3 | `[mode]` | ODU | 13 | |
-| SWING (V) | 4 | `[on?1:0]` | IDU | 14 | |
+| SWING (V) | 4 | `[on?0:1]` | IDU | 14 | |
 | TURBO | 5 | | CONVERTIBLE | 17 | `[val]` |
 | SLEEP | 6 | | OFF_TIMER | 18 | `[min u32 BE]` |
 | TIMER | 7 | | ON_TIMER | 19 | `[min u32 BE]` |
@@ -82,7 +82,8 @@ Value encodings:
 - **mode** — `DRY 0 · COOL 1 · AUTO 2 · FAN 3 · HEAT 4 · WIND 5 · WET 6 · CONVERTIBLE 17`.
 - **fan** — `auto 0 · low 1 · medium 2 · high 3`.
 - **temperature** — one byte of °C.
-- **swing** — vertical is `SWING (V)` (`level[0] = 4`), horizontal is `SWING_H`
+- **swing** — vertical is `SWING (V)` (`level[0] = 4`, payload `[on?0:1]`,
+  inverted like power), horizontal is `SWING_H`
   (`level[0] = 21`, payload `[0, on?1:0]`).
 
 Worked frames (hex, spaces for reading only; full set in

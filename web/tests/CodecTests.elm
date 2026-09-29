@@ -76,6 +76,9 @@ goldenFrames =
         , vector "passkey_4271" (Codec.login "4271") "ff02580004000100000000013400000000000000040000000034323731"
         , test "an unknown mode falls back to cool, as the other codecs do" <|
             \_ -> Expect.equal (hex (Codec.setMode "nonsense")) (hex (Codec.setMode "cool"))
+        , test "vertical swing is inverted like power: on is 0" <|
+            \_ ->
+                Expect.equal ( List.drop 25 (Codec.setSwing True), List.drop 25 (Codec.setSwing False) ) ( [ 0 ], [ 1 ] )
         , test "swing_h carries a two-byte payload" <|
             \_ ->
                 Expect.equal (List.drop 25 (Codec.setSwingH True)) [ 0, 1 ]
