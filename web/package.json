@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "elm make src/Main.elm --optimize --output=dist/elm.js && esbuild js/app.js --bundle --format=esm --minify --outfile=dist/app.js && cp index.html manifest.webmanifest icon.svg logo-fins.svg icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png dist/ && node gen-sw.mjs",
+    "build": "elm make src/Main.elm --optimize --output=dist/elm.js && esbuild js/app.js --bundle --format=esm --minify --outfile=dist/app.js && cp index.html _headers manifest.webmanifest icon.svg logo-fins.svg icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png dist/ && node gen-sw.mjs",
     "test": "elm-test"
   },
   "devDependencies": {
