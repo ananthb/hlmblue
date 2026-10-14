@@ -25,19 +25,20 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
     body {
-      margin: 0; background: var(--bg); color: var(--btn-ink);
+      margin: 0; background: var(--bg); color: var(--btn-ink); overflow: hidden;
       font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       -webkit-user-select: none; user-select: none;
     }
     .stage {
-      min-height: 100dvh; display: flex; justify-content: center; align-items: stretch;
-      padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
+      height: 100dvh; display: flex; justify-content: center; align-items: stretch;
+      padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
     }
 
     /* The remote body — a bordered, rounded case that nearly fills the screen on
        mobile (top and bottom edges visible) and is a centered card on desktop. */
     .remote {
-      width: 100%; max-width: 380px; display: flex; flex-direction: column;
+      width: 100%; max-width: 380px; min-height: 0; overflow: hidden;
+      display: flex; flex-direction: column;
       gap: 16px; padding: 20px 20px 22px;
       background: linear-gradient(160deg, var(--case-a), var(--case-b));
       border: 1px solid var(--case-edge); border-radius: 28px;
@@ -52,13 +53,15 @@
     }
     .remote.asleep { filter: saturate(.6) brightness(.96); }
 
-    /* Source link — a quiet footer at the base of the case. */
-    .source { margin-top: 2px; text-align: center; }
-    .source a {
-      font-size: 11px; letter-spacing: .04em; text-decoration: none;
-      color: #8a93a1; opacity: .75;
+    /* Source + license links — a quiet footer pinned to the base of the case so
+       it stays visible when the pad scrolls. */
+    .source {
+      flex: none; margin-top: 2px; text-align: center;
+      font-size: 11px; letter-spacing: .04em; color: #8a93a1; opacity: .75;
     }
+    .source a { text-decoration: none; color: inherit; }
     .source a:hover { opacity: 1; text-decoration: underline; }
+    .source .sep { margin: 0 6px; opacity: .5; }
 
     /* Status bar: indicator LED + Bluetooth logo + device name + menu, and brand. */
     .statusbar { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -161,8 +164,9 @@
     .lcd .bar:nth-child(3) { height: 12px; }
     .lcd .bar.on { background: var(--lcd-ink); }
 
-    /* Button pad */
-    .pad { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+    /* Button pad — takes the slack so the case fits the viewport; scrolls
+       internally on very short screens rather than pushing the footer off. */
+    .pad { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-end; }
     .pad.connect, .pad.pinpad { align-items: center; justify-content: center; gap: 18px; }
     .pad.grid {
       display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 12px;
