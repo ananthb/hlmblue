@@ -686,7 +686,7 @@ viewReadout powerOn swingV swingH st =
     , div [ class "lcd-bot" ]
         [ span [ class "field" ] [ label_ "FAN", fanBars st.fan ]
         , span [ classList [ ( "field", True ), ( "on", swingV || swingH ) ] ] [ text (swingText swingV swingH) ]
-        , span [ class "field watts" ] [ text (wattsText st) ]
+        , span [ class "field watts" ] [ label_ "PWR", text (wattsText st) ]
         ]
     ]
 
@@ -704,11 +704,7 @@ placeholder caption =
 
 wattsText : Codec.Status -> String
 wattsText st =
-    if st.watts > 0 then
-        String.fromInt st.watts ++ "W"
-
-    else
-        "STANDBY"
+    String.fromInt st.watts ++ " W"
 
 
 swingText : Bool -> Bool -> String
