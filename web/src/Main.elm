@@ -494,6 +494,9 @@ viewFooter =
     div [ class "source" ]
         [ a [ href "https://github.com/ananthb/hlmblue", target "_blank", rel "noopener" ]
             [ text "source" ]
+        , span [ class "sep" ] [ text "·" ]
+        , a [ href "https://github.com/ananthb/hlmblue/blob/main/LICENSE", target "_blank", rel "noopener" ]
+            [ text "license" ]
         ]
 
 
