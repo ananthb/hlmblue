@@ -15,7 +15,9 @@ map in [`gatt.json`](gatt.json); golden command frames in
 
 ## GATT
 
-MTU negotiates to 247.
+MTU negotiates to 247 over an ESPHome Bluetooth proxy. A BlueZ link from a
+Linux host settles at 23 and never carries the status frames — see
+[why not just use the local adapter](#why-not-just-use-the-local-adapter).
 
 | Service | Char | Properties | Notes |
 |---|---|---|---|
@@ -112,6 +114,13 @@ To receive status, write the CCCDs explicitly — `0x0100` to the `0xB003` CCCD
 `start_notify` is not enough. Then a write to `0xB002` (a `STATUS_DATA` request
 works) triggers the unit to dump its state.
 
+**An idle unit is silent.** Within 60–100 s of switching off, the pushes stop,
+and a `STATUS_DATA` request sent to a unit that is already off gets no answer at
+all (0 frames in 20 s). It still accepts a power-on, which restarts the stream
+within a second or two. So silence is not evidence of a broken link: it is only
+a fault while the unit is on, and anything that treats "no recent status" as
+unavailable makes the unit impossible to switch back on.
+
 Each notification's value is ASCII text:
 
 ```
@@ -188,17 +197,47 @@ handling once the length is respected.
 
 An ESP32 running [`bluetooth_proxy`](https://esphome.io/components/bluetooth_proxy.html)
 works as a remote GATT client via `aioesphomeapi` (see
-[`../tools/dump_gatt.py`](../tools/dump_gatt.py)). Two non-obvious traps:
+[`../tools/dump_gatt.py`](../tools/dump_gatt.py)). Five non-obvious traps:
 
-- **The ESP routes the connection response only to the API connection that
-  subscribed to advertisements.** Call
-  `subscribe_bluetooth_le_raw_advertisements()` before
-  `bluetooth_device_connect()`, or the response goes to whichever client
-  subscribed first (usually Home Assistant) and your client times out.
-- **`feature_flags` is not read from `device_info()`.** Pass
-  `info.bluetooth_proxy_feature_flags` into `bluetooth_device_connect()`
-  explicitly, or it defaults to 0 and the call raises `ValueError`.
+- **Keep the advertisement subscription open for as long as the link lives.**
+  Call `subscribe_bluetooth_le_raw_advertisements()` *before*
+  `bluetooth_device_connect()` and do not cancel it afterwards. The proxy has to
+  be scanning when it is asked to connect — with the scan stopped it has nothing
+  to find, and it never answers the connect request at all (the call sits out its
+  30 s timeout and then times out again on the disconnect). Cancelling the
+  subscription once the link *is* up breaks the GATT discovery that follows, and
+  then a disconnect that never answers. A connect that is refused exactly this
+  way looks indistinguishable from a device that is out of range.
+- **Ask for `has_cache=False`.** That is `CONNECT_V3_WITHOUT_CACHE`, which has
+  the proxy walk the GATT table and return it. A cached table from a proxy that
+  never discovered the device has no CCCD descriptors, so the handles the
+  protocol needs cannot be found.
+- **Write the CCCDs, then subscribe.** Write `0x0100` to the `0xB003` CCCD
+  (handle 20) and `0x0200` to the `0xB004` CCCD (handle 23) over GATT, then call
+  `bluetooth_gatt_start_notify()` on both characteristics. Writing only the
+  CCCDs leaves `aioesphomeapi` with no callback; subscribing only, without the
+  explicit descriptor write, does not reliably start the stream on this unit.
+- **`feature_flags` is passed in, not read from the device.** Pass
+  `info.bluetooth_proxy_feature_flags` (or
+  `info.bluetooth_proxy_feature_flags_compat(api_version)`) to
+  `bluetooth_device_connect()`; it defaults to 0 and the call raises
+  `ValueError`.
+- **Prefer your own API connection over the one the ESPHome integration holds.**
+  The advertisement subscription above competes with Home Assistant's own
+  scanner on the same proxy, and it has to be held for the life of the link.
+  A separate connection keeps that subscription out of Home Assistant's, and
+  keeps the integration alive across an ESPHome entry reload. The host and the
+  Noise PSK come from the ESPHome config entry (`host`, `port`, `noise_psk`), so
+  nothing has to be configured twice.
 
-Taking the advertisement subscription takes BLE proxying away from Home Assistant
-and does not always hand back; keep such sessions short, and reload the ESPHome
-config entry if the scanner stays stuck.
+### Why not just use the local adapter
+
+A BlueZ connection to this unit settles at the ATT MTU of 23. Its status frames
+are 41 bytes, so at that MTU every `Poll:` notification is dropped and only the
+11-byte `Diag:` chatter gets through: the link connects, the login is accepted,
+and the unit reports nothing but `off` for ever. `0xB001` reads back 22 bytes
+the same way — truncated, not failing.
+
+An ESPHome proxy negotiates 247, which is why everything here goes through one.
+A link is only good for status if its MTU is at least 44, and on this host's
+adapter it never is.

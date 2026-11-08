@@ -10,16 +10,32 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 
-from .const import CONF_ADDRESS, CONF_CONFIGURED, CONF_PIN, DEFAULT_PIN, DOMAIN
+from .const import (
+    CONF_ADDRESS,
+    CONF_CONFIGURED,
+    CONF_PIN,
+    CONF_PROXY,
+    CONF_TRANSPORT,
+    DEFAULT_PIN,
+    DOMAIN,
+    TRANSPORT_AUTO,
+    TRANSPORT_LOCAL,
+    TRANSPORT_PROXY,
+)
 from .protocol import NAME_PREFIX
+from .proxy import proxies
 
 
 class AcConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for an A/C."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(config_entry) -> OptionsFlow:
+        return AcOptionsFlow()
 
     def __init__(self) -> None:
         self._discovered: dict[str, str] = {}  # address -> name
@@ -96,4 +112,56 @@ class AcConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {vol.Required(CONF_ADDRESS): vol.In(self._discovered)}
             ),
+        )
+
+
+class AcOptionsFlow(OptionsFlow):
+    """Where the link to the A/C comes from.
+
+    A local adapter can connect and still deliver nothing: the unit's status
+    frames are 41 bytes, and a BlueZ link stuck at the ATT MTU of 23 carries
+    only its 11-byte Diag: chatter. An ESPHome proxy negotiates a large MTU, so
+    "auto" prefers one and falls back to this host's adapter.
+    """
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                data={
+                    CONF_TRANSPORT: user_input[CONF_TRANSPORT],
+                    CONF_PROXY: user_input.get(CONF_PROXY) or "",
+                }
+            )
+
+        # Keep a proxy the entry already names selectable even while it is
+        # offline, so opening the form and saving it again cannot silently
+        # switch the entry away from it.
+        options = self.config_entry.options
+        names = [proxy.name for proxy in proxies(self.hass)]
+        saved = options.get(CONF_PROXY) or ""
+        if saved and saved not in names:
+            names.append(saved)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_TRANSPORT,
+                        default=options.get(CONF_TRANSPORT, TRANSPORT_AUTO),
+                    ): vol.In(
+                        {
+                            TRANSPORT_AUTO: "Auto (a proxy if there is one)",
+                            TRANSPORT_PROXY: "ESPHome proxy only",
+                            TRANSPORT_LOCAL: "This host's adapter only",
+                        }
+                    ),
+                    vol.Optional(CONF_PROXY, default=saved): vol.In(
+                        [""] + names
+                    ),
+                }
+            ),
+            description_placeholders={
+                "proxies": ", ".join(names) or "none",
+            },
         )

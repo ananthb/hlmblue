@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0
+
+- **The A/C can now be read and controlled again from a Home Assistant host
+  whose Bluetooth adapter cannot carry its status.** The unit pushes its status
+  as 41-byte notifications, and a BlueZ link settles at the ATT MTU of 23, which
+  is too small: the link connects, the login is accepted, and every status frame
+  is dropped, so the entity sat there reporting **off** with no readings and
+  nothing to command. The integration now talks to an ESPHome Bluetooth proxy
+  instead, where the link negotiates 247.
+
+  This needs no reconfiguration: an ESPHome proxy that Home Assistant already
+  connects to is used automatically. **Settings → Devices & services → He A/C →
+  Configure** lets you pin one, or force the host's own adapter back.
+
+- The entity is no longer marked **unavailable** whenever status has gone quiet.
+  The unit stops pushing within a minute of switching off and does not answer a
+  status request while it is off, so time-based freshness made the entity vanish
+  exactly when the automations needed it — a relay power cycle left it
+  unavailable for good. A link is now considered usable if it is up and its MTU
+  can carry a status frame; a running unit that goes quiet is still treated as
+  broken, but an idle one stays available and controllable.
+
+- Added a **transport** attribute, saying whether the link is on a proxy
+  (`proxy:<name>`) or on this host's adapter, so "is it really using the proxy?"
+  is answerable from the UI.
+
 ## 0.2.8
 
 - Fix the swing selector: off and vertical were swapped, as were horizontal

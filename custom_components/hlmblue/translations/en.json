@@ -51,5 +51,17 @@
         "name": "Reset passkey to 0000"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Connection",
+        "description": "The A/C pushes its status as 41-byte frames, so the link needs an ATT MTU of at least 44. An ESPHome Bluetooth proxy negotiates a large one; this host's adapter often sticks at 23, where the frames are dropped and the unit looks switched off for ever. Proxies Home Assistant can see right now: {proxies}.",
+        "data": {
+          "transport": "Transport",
+          "proxy": "ESPHome proxy (blank for any)"
+        }
+      }
+    }
   }
 }
