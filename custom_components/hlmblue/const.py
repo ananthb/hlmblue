@@ -7,6 +7,15 @@ CONF_PIN = "pin"
 DEFAULT_PIN = "0000"
 CONF_CONFIGURED = "configured"
 
+# Where the link to the A/C comes from. "auto" prefers an ESPHome Bluetooth
+# proxy and falls back to this host's adapter when there is none; "local"
+# pins the adapter; "proxy" refuses to fall back.
+CONF_TRANSPORT = "transport"
+TRANSPORT_AUTO = "auto"
+TRANSPORT_LOCAL = "local"
+TRANSPORT_PROXY = "proxy"
+CONF_PROXY = "proxy"
+
 # The unit is request/response and drops idle connections; poll on this cadence.
 POLL_INTERVAL = 30  # seconds
 # hvac_action is "cooling"/"heating" above this power draw, else "idle".
@@ -20,3 +29,14 @@ RUNNING_WATTS = 150
 # by a fraction of a second needs covering -- it may predate the unit acting --
 # and the hold lifts as soon as the report agrees, so one poll is plenty.
 POWER_SETTLE = POLL_INTERVAL  # seconds
+# A link can be up and still carry nothing. That is exactly how a BlueZ link
+# stuck at ATT MTU 23 behaves: it connects, the login and the status request are
+# written, and the unit's 41-byte status frames never arrive, so the entity used
+# to sit there reporting "off" with no readings. Below this MTU a status frame
+# cannot fit (41 bytes of payload plus the 3-byte ATT header), so a link that
+# negotiated less cannot be used whatever it claims.
+STATUS_MTU = 44
+# An idle unit is silent: it stops pushing within a minute of switching off and
+# does not answer a status request while off. Silence only means fault while the
+# unit is on, where status arrives every second or two.
+STATUS_TIMEOUT = 3 * POLL_INTERVAL  # seconds

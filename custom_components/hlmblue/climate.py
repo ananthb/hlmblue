@@ -91,6 +91,12 @@ class AcClimate(CoordinatorEntity[AcCoordinator], ClimateEntity):
         return super().available and bool(self._d.get("available"))
 
     @property
+    def extra_state_attributes(self) -> dict:
+        # Which link is carrying the A/C. A local adapter is the case that
+        # cannot work (it drops the unit's 41-byte status frames), so say so.
+        return {"transport": self._d.get("transport")}
+
+    @property
     def current_temperature(self) -> float | None:
         return self._d.get("room")
 

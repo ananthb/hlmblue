@@ -9,7 +9,15 @@ web app, no vendor cloud. The wire protocol is documented under [`docs/`](docs/)
 
 Or add this repo to [HACS](https://hacs.xyz) as a custom repository (category
 *Integration*), install **He A/C (BLE)**, then add it from Settings → Devices &
-Services. It reaches the A/C through an ESPHome Bluetooth proxy.
+Services.
+
+It reaches the A/C through an ESPHome Bluetooth proxy, which is not optional in
+practice: the unit pushes its status as 41-byte notifications, and a Bluetooth
+adapter on the Home Assistant host typically settles at an MTU of 23, where
+those frames are dropped and the unit looks permanently switched off. A proxied
+link negotiates 247. Any ESPHome device with `bluetooth_proxy` enabled that Home
+Assistant already connects to is used automatically; **Configure** on the
+integration pins one, or forces the host's own adapter.
 
 ## Web app
 
