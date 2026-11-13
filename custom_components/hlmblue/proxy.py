@@ -46,6 +46,9 @@ CCCD_INDICATE = b"\x02\x00"
 # that a first refresh does not hang the config entry.
 ADVERT_TIMEOUT = 20.0
 CONNECT_TIMEOUT = 30.0
+# Discovery and the notify subscription answer in well under a second on a
+# healthy proxy, and never at all on a wedged one; that is what the cap is for.
+GATT_TIMEOUT = 20.0
 
 
 class ProxyUnavailable(Exception):
@@ -173,8 +176,9 @@ class ProxySession:
                 self.proxy.host, self.proxy.port, noise_psk=self.proxy.noise_psk
             )
             try:
-                await client.connect(login=True)
-                info = await client.device_info()
+                async with asyncio.timeout(CONNECT_TIMEOUT):
+                    await client.connect(login=True)
+                    info = await client.device_info()
             except Exception as err:  # noqa: BLE001 - any failure is "no proxy"
                 try:
                     await client.disconnect()
@@ -316,7 +320,9 @@ class ProxyClient:
 
         try:
             _LOGGER.debug("connect: gatt services start")
-            services = await cli.bluetooth_gatt_get_services(self._addr)
+            services = await asyncio.wait_for(
+                cli.bluetooth_gatt_get_services(self._addr), GATT_TIMEOUT
+            )
             _LOGGER.debug("connect: gatt services done")
             self._gatt = gatt_map(services.services)
         except ProxyUnavailable:
@@ -345,21 +351,30 @@ class ProxyClient:
             if handle is None:
                 continue
             try:
-                await cli.bluetooth_gatt_write_descriptor(
-                    self._addr, handle, value, wait_for_response=True
+                await asyncio.wait_for(
+                    cli.bluetooth_gatt_write_descriptor(
+                        self._addr, handle, value, wait_for_response=True
+                    ),
+                    GATT_TIMEOUT,
                 )
             except Exception as err:  # noqa: BLE001 - the notify sub retries it
                 _LOGGER.debug("cccd %s on %s: %s", handle, self._proxy.name, err)
 
         try:
-            unsub, _unsub_state = await cli.bluetooth_gatt_start_notify(
-                self._addr, self._gatt.notify, self._on_gatt_notify
+            unsub, _unsub_state = await asyncio.wait_for(
+                cli.bluetooth_gatt_start_notify(
+                    self._addr, self._gatt.notify, self._on_gatt_notify
+                ),
+                GATT_TIMEOUT,
             )
             self._unsub_notify.append(unsub)
             if self._gatt.indicate is not None:
                 try:
-                    unsub, _unsub_state = await cli.bluetooth_gatt_start_notify(
-                        self._addr, self._gatt.indicate, self._on_gatt_notify
+                    unsub, _unsub_state = await asyncio.wait_for(
+                        cli.bluetooth_gatt_start_notify(
+                            self._addr, self._gatt.indicate, self._on_gatt_notify
+                        ),
+                        GATT_TIMEOUT,
                     )
                     self._unsub_notify.append(unsub)
                 except Exception as err:  # noqa: BLE001 - indicate is optional

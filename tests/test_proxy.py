@@ -7,12 +7,14 @@ package so that works without pulling in the integration's __init__, which
 needs Home Assistant itself.
 """
 
+import asyncio
 import importlib.util
 import json
 import pathlib
 import sys
 import types
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -161,3 +163,47 @@ def test_the_scan_outlives_the_advertisement_wait():
 
     assert asyncio.run(wait_twice()) == (None, None)
     assert client.subscriptions == 1
+
+
+class _SilentGatt:
+    """An APIClient whose discovery never answers, the way a wedged proxy acts.
+
+    It accepts the API connection and keeps scanning, so it looks healthy; only
+    the BLE side is stuck and answers neither the connect nor the discovery.
+    """
+
+    def __init__(self) -> None:
+        self.disconnected = False
+
+    async def bluetooth_device_connect(self, *_args, **_kwargs):
+        return lambda: None
+
+    async def bluetooth_gatt_get_services(self, _address):
+        await asyncio.sleep(3600)
+
+    async def bluetooth_device_disconnect(self, _address):
+        self.disconnected = True
+
+
+def test_a_silent_gatt_discovery_fails_instead_of_hanging(monkeypatch):
+    """Discovery must give up, not wait for ever.
+
+    The coordinator only schedules its next poll once the update finishes, so an
+    answer that never comes stopped polling for good and left the entity
+    unavailable until the entry was reloaded.
+    """
+    monkeypatch.setattr(proxy, "GATT_TIMEOUT", 0.05)
+    instance, _ = _session()
+    client = _SilentGatt()
+    instance._client = client
+    instance.async_client = AsyncMock(return_value=client)
+    instance.async_wait_for_advertisement = AsyncMock(
+        return_value=SimpleNamespace(address=0xE88F8E019869, address_type=0)
+    )
+    link = proxy.ProxyClient(
+        instance, "E8:8F:8E:01:98:69", lambda *args: None, lambda: None
+    )
+
+    with pytest.raises(proxy.ProxyUnavailable):
+        asyncio.run(link.async_connect())
+    assert client.disconnected
