@@ -40,3 +40,7 @@ STATUS_MTU = 44
 # does not answer a status request while off. Silence only means fault while the
 # unit is on, where status arrives every second or two.
 STATUS_TIMEOUT = 3 * POLL_INTERVAL  # seconds
+# A proxy that stops answering must cost one poll, not every poll after it:
+# nothing in Home Assistant times a coordinator update out, so it is capped here.
+# Comfortably above the per-step timeouts in proxy.py.
+UPDATE_TIMEOUT = 4 * POLL_INTERVAL  # seconds

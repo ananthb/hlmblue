@@ -39,6 +39,7 @@ from .const import (
     TRANSPORT_AUTO,
     TRANSPORT_LOCAL,
     TRANSPORT_PROXY,
+    UPDATE_TIMEOUT,
 )
 from .power import PowerTracker
 from .proxy import ProxyClient, ProxySession, ProxyUnavailable, proxies
@@ -305,8 +306,16 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
 
     async def _async_update_data(self) -> dict:
         # Keepalive poll: reconnect if needed and re-request status.
-        await self._ensure_connected()
-        await self._write(p.frame_status())
+        try:
+            async with asyncio.timeout(UPDATE_TIMEOUT):
+                await self._ensure_connected()
+                await self._write(p.frame_status())
+        except TimeoutError as err:
+            # A proxy that goes silent must cost one poll, not the loop: drop the
+            # half-open link so the next update rebuilds it instead of reusing it.
+            await self._async_drop_proxy()
+            await self._async_drop_local()
+            raise UpdateFailed("the unit stopped answering; dropping the link") from err
         return self._snapshot()
 
     # ---- commands ----

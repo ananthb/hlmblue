@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1
+
+- **A proxy that stops answering no longer stops the polling.** After a power
+  cut the ESP32 that bridges the unit can come back able to scan and answer the
+  API while every BLE connection times out, and nothing on the old path capped
+  discovery: the update never finished, Home Assistant only schedules the next
+  poll once it has, so the entity sat **unavailable** until the integration was
+  reloaded. Discovery, the descriptor writes and the notify subscriptions now
+  give up after 20 s, and the whole update is capped, so a silent link costs one
+  poll instead of every poll after it.
+
 ## 0.3.0
 
 - **The A/C can now be read and controlled again from a Home Assistant host
