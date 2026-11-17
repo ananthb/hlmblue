@@ -24,6 +24,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from . import link
 from . import protocol as p
 from .const import (
     CONF_PIN,
@@ -70,6 +71,7 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
         # status frame, or a power-on it accepted. Silent-when-off is normal, so
         # this only decides availability while the unit is on.
         self._alive_at: float | None = None
+        self._link_at: float | None = None
         self._local_mtu_warned = False
         self._closing = False
 
@@ -149,6 +151,7 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
         except ProxyUnavailable as err:
             raise UpdateFailed(str(err)) from err
         self._alive_at = None
+        self._link_at = time.monotonic()
         self._proxy = client
         _LOGGER.debug("%s is on %s", self.address, client.transport)
 
@@ -167,6 +170,7 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
         except Exception:  # noqa: BLE001 - indicate char is optional
             pass
         self._alive_at = None
+        self._link_at = time.monotonic()
         self._client = client
         self._check_local_mtu(client)
 
@@ -218,6 +222,7 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
         elif self._proxy is None:
             self._client = None
         self._alive_at = None
+        self._link_at = None
         if not self._closing:
             self.async_set_updated_data(self._snapshot())
 
@@ -285,6 +290,18 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
             and time.monotonic() - self._alive_at < STATUS_TIMEOUT
         )
 
+    def _link_is_deaf(self) -> bool:
+        """Whether this link should be rebuilt rather than kept.
+
+        A link this host's adapter negotiated below the status MTU can never
+        carry a frame, so a reconnect changes nothing; the fix there is a proxy,
+        and the entity already says so.
+        """
+        if self._proxy is None and not self._local_mtu_ok:
+            return False
+        heard = self._alive_at if self._alive_at is not None else self._link_at
+        return link.deaf(self._power.is_on, heard, time.monotonic(), STATUS_TIMEOUT)
+
     def _snapshot(self) -> dict:
         r = self._raw
         watts = r.get(p.DP_POWER_W) or 0
@@ -310,6 +327,13 @@ class AcCoordinator(DataUpdateCoordinator[dict]):
             async with asyncio.timeout(UPDATE_TIMEOUT):
                 await self._ensure_connected()
                 await self._write(p.frame_status())
+                if self._link_is_deaf():
+                    # The link is up and the unit is not talking. Writes still
+                    # return, so nothing else will ever notice; drop it and let
+                    # the next poll build a new one.
+                    await self._async_drop_proxy()
+                    await self._async_drop_local()
+                    raise UpdateFailed("the unit is on but silent; dropping the link")
         except TimeoutError as err:
             # A proxy that goes silent must cost one poll, not the loop: drop the
             # half-open link so the next update rebuilds it instead of reusing it.

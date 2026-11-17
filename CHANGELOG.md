@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.2
+
+- **A link that stays open while the unit goes quiet now heals itself.** The
+  unit can stop pushing status frames while the proxy still holds the BLE
+  connection and every write still returns, so the integration kept a dead
+  link: the entity sat **unavailable** until it was reloaded by hand, and the
+  automations that should have driven the A/C could not. A running unit that
+  has not been heard from in 90 s now has its link dropped, and the next poll
+  rebuilds it. Silence while the unit is off is still normal, and a host
+  adapter too small for a status frame is left alone, because reconnecting
+  cannot help it.
+
 ## 0.3.1
 
 - **A proxy that stops answering no longer stops the polling.** After a power
